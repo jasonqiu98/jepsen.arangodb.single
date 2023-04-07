@@ -1,7 +1,6 @@
 (ns jepsen.arangodb.tests.register
   "Register test"
   (:require [clj-http.client :as http]
-            [clojure.java.io :as io]
             [clojure.tools.logging :refer :all]
             [jepsen [checker :as checker]
              [client :as client]
@@ -102,13 +101,13 @@
             (assoc op :type :fail, :error (get errorCodeMap errorCode errorCode)))))))
 
   (teardown! [this test]
-    (info "Downloading WAL entries to " wal-path "...")
-    (def wal-log (:body (http/get
-                         (str "http://" node ":8529/_db/" dbName "/_api/wal/tail")
-                         {:basic-auth "root:"})))
-    (spit wal-path wal-log)
-    (info "WAL entries downloaded")
     (try
+      (info "Downloading WAL entries to " wal-path "...")
+      (def wal-log (:body (http/get
+                           (str "http://" node ":8529/_db/" dbName "/_api/wal/tail")
+                           {:basic-auth "root:"})))
+      (spit wal-path wal-log)
+      (info "WAL entries downloaded")
       (.shutdown conn)
       (info "Connection closed")
       (catch clojure.lang.ExceptionInfo e

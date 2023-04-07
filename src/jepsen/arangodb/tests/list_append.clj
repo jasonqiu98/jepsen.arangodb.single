@@ -2,7 +2,8 @@
   "Detects cycles in histories where operations are transactions
    over named lists, and operations are either appends or reads.
    See elle.list-append for docs."
-  (:require [clojure.tools.logging :refer :all]
+  (:require [clj-http.client :as http]
+            [clojure.tools.logging :refer :all]
             [jepsen [checker :as checker]
              [client :as client]
              [generator :as gen]
@@ -16,6 +17,8 @@
 (def dbName "listAppend")
 (def collectionName "laCol")
 (def attributeName "laAttr")
+
+(def wal-path "log/wal.log") ; path from the local project folder
 
 (defrecord Client [db-created? collection-created? conn node]
   client/Client
@@ -108,7 +111,12 @@
 
   (teardown! [this test]
     (try
-      ; tail the WAL and store to file
+      (info "Downloading WAL entries to " wal-path "...")
+      (def wal-log (:body (http/get
+                           (str "http://" node ":8529/_db/" dbName "/_api/wal/tail")
+                           {:basic-auth "root:"})))
+      (spit wal-path wal-log)
+      (info "WAL entries downloaded")
       (.shutdown conn)
       (info "Connection closed")
       (catch clojure.lang.ExceptionInfo e
