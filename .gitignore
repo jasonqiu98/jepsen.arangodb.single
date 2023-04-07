@@ -1,0 +1,27 @@
+/target
+/classes
+/checkouts
+profiles.clj
+pom.xml
+pom.xml.asc
+*.jar
+*.class
+/.lein-*
+/.nrepl-port
+.hgignore
+.hg/
+
+# Vagrant cache
+.vagrant
+vagrant/.vagrant
+
+# Jepsen
+/store
+
+# Clojure Formatters
+.clj-kondo
+.lsp
+
+# ssh keys
+vagrant/vagrant_ssh_key
+vagrant/shared/vagrant_ssh_key.pub
