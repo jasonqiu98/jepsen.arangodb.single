@@ -73,27 +73,7 @@
                    attr-key " == " old-val " UPDATE d WITH {" attr-key ": " new-val "} IN " collection-name " RETURN true")]
     (-> conn (get-db db-name) (.query query Boolean) (.hasNext))))
 
-;; (defn a-sample-txn
-;;   [conn db-name collection-name attr-key doc-key attr-val]
-;;   (let [db (-> conn (get-db db-name))
-;;                    ; set write collections
-;;         txn-entity (.beginStreamTransaction db (.writeCollections (new StreamTransactionOptions) (into-array [collection-name])))
-;;         query-opts (-> (new AqlQueryOptions) (.streamTransactionId (.getId txn-entity)))
-;;         a1-query (str "FOR d IN " collection-name " FILTER d._key == " (str "\"" doc-key "\"")
-;;                       " UPDATE d WITH {" attr-key ": APPEND(d." attr-key ", " attr-val ")} IN "
-;;                       collection-name " RETURN true")
-;;         a2-query (str "FILTER LENGTH(FOR d IN " collection-name " FILTER d._key == " (str "\"" doc-key "\"")
-;;                       " RETURN d." attr-key ") == 0 INSERT {_key: " (str "\"" doc-key "\"") ", " attr-key
-;;                       ": [" attr-val "]} INTO " collection-name " RETURN true")
-;;         res1  (if (-> db (.query a1-query query-opts Boolean) (.hasNext)) true ; if query returns, the list already exists
-;;                   (-> db (.query a2-query query-opts Boolean) (.hasNext)))     ; otherwise, insert a new list
-;;         r-query (str "FOR d IN " collection-name " FILTER d._key == " (str "\"" doc-key "\"") " RETURN d." attr-key)
-;;         iter (-> db (.query r-query query-opts Object) (.iterator))
-;;         res2 (if (.hasNext iter) (.next iter) nil)]
-;;     (info (str [:r doc-key res2]))
-;;     [:r doc-key res2]))
-
-(defn submit-txn
+(defn submit-txn-la
   "Submit a transaction and get the return
    e.g. handle operation from {:type :invoke, :f :txn, :value [[:r 3 nil] [:append 3 2] [:r 3]]}
                  to {:type :ok, :f :txn, :value [[:r 3 [1]] [:append 3 2] [:r 3 [1 2]]]}"
@@ -108,23 +88,39 @@
                                           iter (-> db (.query r-query query-opts Object) (.iterator))
                                           res (vec (if (.hasNext iter) (.next iter) nil))]
                                       [op doc-key res])
-                                 ; query 1
-                                 ; FOR d IN example FILTER d._key == "1" UPDATE d WITH {val: APPEND(d.val, 4)} IN example RETURN true
-                                 ; query 2
-                                 ; FILTER LENGTH(FOR d IN example FILTER d._key == "1" RETURN d.val) == 0
-                                 ; INSERT {_key: "1", val: [4]} INTO example RETURN true
-                                 :append (let [a1-query (str "FOR d IN " collection-name " FILTER d._key == " (str "\"" doc-key "\"")
-                                                             " UPDATE d WITH {" attr-key ": APPEND(d." attr-key ", " attr-val ")} IN "
-                                                             collection-name " RETURN true")
-                                               a2-query (str "FILTER LENGTH(FOR d IN " collection-name " FILTER d._key == " (str "\"" doc-key "\"")
-                                                             " RETURN d." attr-key ") == 0 INSERT {_key: " (str "\"" doc-key "\"") ", " attr-key
-                                                             ": [" attr-val "]} INTO " collection-name " RETURN true")
-                                               query-opts (-> (new AqlQueryOptions) (.streamTransactionId (.getId txn-entity)))
-                                               res  (if (-> db (.query a1-query query-opts Boolean) (.hasNext)) true ; if query returns, the list already exists
-                                                        (-> db (.query a2-query query-opts Boolean) (.hasNext)))     ; otherwise, insert a new list
-                                               ]
-                                           (when (not res) (throw (Exception. "append fails!")))
+                                 ; e.g.
+                                 ; UPSERT {_key: "1"} INSERT {_key: "1", val: [4]} UPDATE {val: APPEND(OLD.val, 4)} IN example
+                                 :append (let [a-query (str "UPSERT {_key: " (str "\"" doc-key "\"") "} INSERT {_key: "
+                                                        (str "\"" doc-key "\"") ", " attr-key ": [" attr-val "]} UPDATE {"
+                                                        attr-key ": APPEND(OLD." attr-key ", " attr-val ")} IN " collection-name)
+                                               query-opts (-> (new AqlQueryOptions) (.streamTransactionId (.getId txn-entity)))]
+                                           (.query db a-query query-opts nil)
                                            e))))
                      txn-vec)]
     (if (= ret-val nil) nil (vec ret-val))))
 
+(defn submit-txn-rw
+  "Submit a transaction and get the return
+   e.g. handle operation from {:type :invoke, :f :txn, :value [[:r 3 nil] [:append 3 2] [:r 3]]}
+                 to {:type :ok, :f :txn, :value [[:r 3 1] [:append 3 2] [:r 3 2]]}"
+  [conn db-name collection-name attr-key txn-vec txn-entity]
+  (let [db (-> conn (get-db db-name))
+        ret-val (map (fn [e] (let [[op doc-key attr-val] e]
+                               (case op
+                                 ; e.g. FOR d IN example FILTER d._key == "1" RETURN d.val
+                                 ; remember to convert key from int to str
+                                 :r (let [r-query (str "FOR d IN " collection-name " FILTER d._key == " (str "\"" doc-key "\"") " RETURN d." attr-key)
+                                          query-opts (-> (new AqlQueryOptions) (.streamTransactionId (.getId txn-entity)))
+                                          iter (-> db (.query r-query query-opts Long) (.iterator))
+                                          res (if (.hasNext iter) (.next iter) nil)]
+                                      [op doc-key res])
+                                 ; e.g.
+                                 ; UPSERT {_key: "1"} INSERT {_key: "1", val: 4} UPDATE {val: 4)} IN example
+                                 :w (let [a-query (str "UPSERT {_key: " (str "\"" doc-key "\"") "} INSERT {_key: "
+                                                            (str "\"" doc-key "\"") ", " attr-key ": " attr-val "} UPDATE {"
+                                                            attr-key ": " attr-val "} IN " collection-name)
+                                               query-opts (-> (new AqlQueryOptions) (.streamTransactionId (.getId txn-entity)))]
+                                           (.query db a-query query-opts nil)
+                                           e))))
+                     txn-vec)]
+    (if (= ret-val nil) nil (vec ret-val))))

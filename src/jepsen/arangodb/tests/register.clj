@@ -20,7 +20,7 @@
 (def collectionName "registerCol")
 (def attributeName "registerAttr")
 
-(def wal-path "log/wal.log") ; path from the local project folder
+(def wal-path "wal-temp.log") ; path from the local project folder
 
 (defrecord Client [db-created? collection-created? conn node]
   client/Client

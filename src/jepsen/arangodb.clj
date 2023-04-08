@@ -1,6 +1,7 @@
 (ns jepsen.arangodb
   (:require [jepsen.arangodb.tests [register :as register]
-             [list-append :as la]]
+             [list-append :as la]
+             [rw-register :as rw]]
             [jepsen [cli :as cli]]
             [jepsen.tests :as tests]))
 
@@ -43,13 +44,14 @@
                  ("noop") :noop
                  :invalid)
     :validate [#{:partition :noop} "Unsupported nemesis"]]
-   [nil "--test-type register|la" "Test type used."
+   [nil "--test-type register|la|rw" "Test type used."
     :default :invalid
     :parse-fn #(case %
                  ("register") :register
                  ("la") :list-append
+                 ("rw") :rw-register
                  :invalid)
-    :validate [#{:register :list-append} "Unsupported test type"]]])
+    :validate [#{:register :list-append :rw-register} "Unsupported test type"]]])
 
 (defn single-test-wrapper
   "a wrapper from the register test and list append test"
@@ -57,6 +59,7 @@
   (let [test-fn (case (:test-type opts)
                   :register register/register-test
                   :list-append la/list-append-test
+                  :rw-register rw/rw-register-test
                   tests/noop-test)]
     (test-fn opts)))
 
