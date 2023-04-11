@@ -17,7 +17,7 @@
 (def collectionName "rwCol")
 (def attributeName "rwAttr")
 
-(def wal-path "wal-temp.log") ; path from the local project folder
+(def wal-path "store/current/wal.log") ; path from the local project folder
 
 (defrecord Client [db-created? collection-created? conn node]
   client/Client

@@ -107,8 +107,11 @@ java.io.IOException: Reached the end of the stream.
     - `--max-writes-per-key` (maximum number of operations per key)
   - e.g. `/bin/bash ./run.sh --skip-vagrant --test-type la --time-limit 20 -r 10 --concurrency 20 --key-count 5 --min-txn-length 4 --max-txn-length 8 --max-writes-per-key 3 --nemesis-type noop`
 
-```
-/bin/bash ./run.sh --skip-vagrant --test-type rw --time-limit 20 -r 10 --concurrency 20 --key-count 5 --min-txn-length 4 --max-txn-length 8 --max-writes-per-key 3 --nemesis-type noop
+```shell
+for t in {10..200..10}
+do
+  /bin/bash ./run.sh --skip-vagrant --test-type rw --time-limit $t -r 10 --concurrency 20 --key-count 5 --min-txn-length 4 --max-txn-length 8 --max-writes-per-key 3 --nemesis-type noop
+done
 ```
 
 ### And more

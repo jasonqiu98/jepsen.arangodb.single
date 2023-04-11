@@ -23,6 +23,3 @@ lein run test \
     --ssh-private-key ./vagrant/vagrant_ssh_key \
     --username vagrant \
     $MORE_ARGS
-
-# move the temp wal log to the result folder
-mv wal-temp.log store/latest/wal.log
