@@ -1,6 +1,10 @@
-# jepsen.arangodb
+# jepsen.arangodb.single
 
 A Clojure library designed to test ArangoDB.
+
+This project is also the generator of register histories for [`GRAIL-artifact`](https://github.com/jasonqiu98/GRAIL-artifact). Note that at line 115 of [`rw_register.clj`](./src/jepsen/arangodb/tests/rw_register.clj), we have increased the WAL chunk size in order to collect a full WAL log.
+
+The bash script [`collect.sh`](./collect.sh) shows an example to collect the benchmark histories from this project, after following the instructions below to set up the environment.
 
 ## Set up your environment for this project
 
@@ -57,47 +61,11 @@ Now the VM is started and waits for the following commands.
 
 ## Start the test
 
-### Start the register test
+### Start the RW-register test
 
-- Basic test (without partition): `/bin/bash ./run.sh --skip-vagrant --test-type register`
-  - The `--skip-vagrant` handle is recommended as it will let the program skip vagrant setup. If you have already followed the previous instructions, do include this handler; otherwise the VMs will be started by `vagrant up`, and you might lose some necessary configurations to run the program. Note that the `--skip-vagrant` handle should be placed immediately after `/bin/bash ./run.sh` as part of the start of the command.
-- With partition: `/bin/bash ./run.sh --skip-vagrant --test-type register --nemesis-type partition`
-- With partition and time limit: `/bin/bash ./run.sh --skip-vagrant --test-type register --time-limit 20 --nemesis-type partition`
-- Increase number of concurrecy: `/bin/bash ./run.sh --skip-vagrant --test-type register --time-limit 20 --concurrency 20 --nemesis-type partition`
-- Other arguments: `/bin/bash ./run.sh --skip-vagrant --test-type register --time-limit 20 -r 10 --concurrency 20 --ops-per-key 10 --threads-per-group 5 --nemesis-type noop`
-
-```
-/bin/bash ./run.sh --skip-vagrant --test-type register --time-limit 200 -r 10 --concurrency 20 --ops-per-key 10 --threads-per-group 5 --nemesis-type noop
-```
-
-```
-curl --header 'accept: application/json' --dump - http://localhost:8529/_db/registerTest/_api/wal/tail -u root:
-```
-
-Errors found?
-
-- Consider generate a new public/private key pair by `ssh-keygen` and goes along the process again. Check your `ssh-agent` as well.
-- If the nemesis type is `partition`, you might see some errors in the end of the output like the following one. This is an internal error raised because of the force shutdown of the program. See it more like a warning instead of an actual error :)
-
-```
-ERROR [2022-12-05 13:08:26,006] pool-6-thread-1 - com.arangodb.internal.velocystream.internal.MessageStore Reached the end of the stream.
-java.io.IOException: Reached the end of the stream.
-        at com.arangodb.internal.velocystream.internal.VstConnection.readBytesIntoBuffer(VstConnection.java:348)
-        at com.arangodb.internal.velocystream.internal.VstConnection.readBytes(VstConnection.java:340)
-        at com.arangodb.internal.velocystream.internal.VstConnection.readChunk(VstConnection.java:315)
-        at com.arangodb.internal.velocystream.internal.VstConnection.lambda$open$0(VstConnection.java:212)
-        at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
-        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
-        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
-        at java.base/java.lang.Thread.run(Thread.java:829)
-```
-
-### Start the list append test
-
-- Basic test (without partition): `/bin/bash ./run.sh --skip-vagrant --test-type la`
-- With partition: `/bin/bash ./run.sh --skip-vagrant --test-type la --nemesis-type partition`
-- With partition and time limit: `/bin/bash ./run.sh --skip-vagrant --test-type la --time-limit 20 --nemesis-type partition`
-- Increase number of concurrecy: `/bin/bash ./run.sh --skip-vagrant --test-type la --time-limit 20 --concurrency 20 --nemesis-type partition`
+- Basic test (without partition): `/bin/bash ./run.sh --skip-vagrant --test-type rw`
+- With time limit: `/bin/bash ./run.sh --skip-vagrant --test-type rw --time-limit 20`
+- Increase number of concurrecy: `/bin/bash ./run.sh --skip-vagrant --test-type rw --time-limit 20 --concurrency 20`
 - Other arguments:
   - `-r 10` (rate of operations)
   - generator-related args (See [link](https://github.com/jepsen-io/elle/blob/main/src/elle/list_append.clj#L920))
@@ -105,14 +73,7 @@ java.io.IOException: Reached the end of the stream.
     - `--min-txn-length` (minimum number of operations per txn)
     - `--max-txn-length` (maximum number of operations per txn)
     - `--max-writes-per-key` (maximum number of operations per key)
-  - e.g. `/bin/bash ./run.sh --skip-vagrant --test-type la --time-limit 20 -r 10 --concurrency 20 --key-count 5 --min-txn-length 4 --max-txn-length 8 --max-writes-per-key 3 --nemesis-type noop`
-
-```shell
-for t in {10..200..10}
-do
-  /bin/bash ./run.sh --skip-vagrant --test-type rw --time-limit $t -r 10 --concurrency 20 --key-count 5 --min-txn-length 4 --max-txn-length 8 --max-writes-per-key 3 --nemesis-type noop
-done
-```
+  - e.g. `/bin/bash ./run.sh --skip-vagrant --test-type rw --time-limit 20 -r 10 --concurrency 20 --key-count 5 --min-txn-length 4 --max-txn-length 8 --max-writes-per-key 3`
 
 ### And more
 

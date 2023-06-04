@@ -112,7 +112,7 @@
     (try
       (info "Downloading WAL entries to " wal-path "...")
       (def wal-log (:body (http/get
-                           (str "http://" node ":8529/_db/" dbName "/_api/wal/tail")
+                           (str "http://" node ":8529/_db/" dbName "/_api/wal/tail?chunkSize=128000000")
                            {:basic-auth "root:"})))
       (spit wal-path wal-log)
       (info "WAL entries downloaded")
